@@ -1,7 +1,7 @@
 dh8
 ===
 
-Control software for [http://diavite.com/index.php/dh-8-en.html][Diavite DH-8] 
+Control software for [Diavite DH-8](http://diavite.com/index.php/dh-8-en.html) 
 surface roughness measurement device.
 
 
@@ -18,7 +18,7 @@ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License
-along with this program. If not, see [www.gnu.org/licenses/][gpl].
+along with this program. If not, see [gpl](www.gnu.org/licenses/).
 
 This file forms part of the Roundcube Webmail Software for which the
 following exception is added: Plugins and Skins which merely make

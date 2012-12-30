@@ -2,7 +2,7 @@ dh8
 ===
 
 Control software for the [Diavite DH-8](http://diavite.com/index.php/dh-8-en.html) 
-surface roughness measurement device.
+surface roughness measurement device. This program works under GNU/Linux.
 
 
 Building:

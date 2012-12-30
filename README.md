@@ -8,12 +8,12 @@ surface roughness measurement device.
 Building:
 ---------
 
-<code>
+<pre>
 cd /path/to/project/root  
 mkdir build && cd build  
 cmake ..  
 make  
-</code>
+</pre>
 
 Setup usb connection:
 ---------------------

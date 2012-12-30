@@ -5,69 +5,79 @@ Control software for the [Diavite DH-8](http://diavite.com/index.php/dh-8-en.htm
 surface roughness measurement device.
 
 
-building:
+Building:
 ---------
 
+<code>
 cd /path/to/project/root
 mkdir build && cd build 
 cmake ..
 make
+</code>
 
-
-setup usb connection:
+Setup usb connection:
 ---------------------
 
-connect the DH-8 via usb to your host-pc.
-the command 'dmesg | tail' shall give a similar output:
-  usb 7-1: new full speed USB device number 3 using uhci_hcd
-  usb 7-1: New USB device found, idVendor=10c4, idProduct=ea60
-  usb 7-1: New USB device strings: Mfr=1, Product=2, SerialNumber=3
-  usb 7-1: Product: CP2101 USB to UART Bridge Controller
-  usb 7-1: Manufacturer: Silicon Labs
-  usb 7-1: SerialNumber: 0001
-  cp210x 7-1:1.0: cp210x converter detected
-  usb 7-1: reset full speed USB device number 3 using uhci_hcd
-  usb 7-1: cp210x converter now attached to ttyUSB0
+Connect the DH-8 via usb to your host-pc.
+The command `'dmesg | tail'` shall give a similar output:
+<code>
+usb 7-1: new full speed USB device number 3 using uhci_hcd
+usb 7-1: New USB device found, idVendor=10c4, idProduct=ea60
+usb 7-1: New USB device strings: Mfr=1, Product=2, SerialNumber=3
+usb 7-1: Product: CP2101 USB to UART Bridge Controller
+usb 7-1: Manufacturer: Silicon Labs
+usb 7-1: SerialNumber: 0001
+cp210x 7-1:1.0: cp210x converter detected
+usb 7-1: reset full speed USB device number 3 using uhci_hcd
+usb 7-1: cp210x converter now attached to ttyUSB0
+</code>
 
-check the current permissions of the created device:
-  ls -lha /dev/ttyUSB0
-  crw-rw---T 1 root dialout 188, 0 Jan 10 09:54 /dev/ttyUSB0
+Check the current permissions of the created device:
+<code>
+ls -lha /dev/ttyUSB0
+crw-rw---T 1 root dialout 188, 0 Jan 10 09:54 /dev/ttyUSB0
+</code>
 
-the root user and the group dialout have read/write permissions to 
-the serial device. make sure that your user "yourusername" is member 
+The root user and the group dialout have read/write permissions to 
+the serial device. Make sure that your user "yourusername" is member 
 of the group dialout:
-  grep dialout /etc/group
-  dialout:x:20:yourusername
+<code>
+grep dialout /etc/group
+dialout:x:20:yourusername
+</code>
 
-if necessary add your user to the group dialout:
-  sudo usermod -a -G dialout yourusername
+If necessary add your user to the group dialout:
+<code>
+sudo usermod -a -G dialout yourusername
+</code>
 
-the serial terminal configuration is:
-  8 data bit
-  1 stop bit
-  no parity
-  115200 baud
+The serial terminal configuration is:
+<code>
+8 data bit
+1 stop bit
+no parity
+115200 baud
+</code>
 
-
-example usage:
+Example usage:
 --------------
+<code>
+./src/main --dev /dev/ttyUSB0 --file ../data/20120208_surface04.m --lt 0.48 --lc 0.08 
+</code>
 
-  ./src/main --dev /dev/ttyUSB0 --file ../data/20120208_surface04.m --lt 0.48 --lc 0.08 
 
-
-
-dependencies:
+Dependencies:
 -------------
 
-cmake
-  cross plattform make 
-  http://www.cmake.org/
-boost program options
-  http://www.boost.org/doc/libs/1_48_0/doc/html/program_options.html
+1. cmake
+    cross plattform make 
+    http://www.cmake.org/
+2. boost program options
+    http://www.boost.org/doc/libs/1_48_0/doc/html/program_options.html
 
-provided by following debian (SQUEEZE) packages:
-  cmake
-  libboost-program-options-dev
+These dependencies are provided by following debian (SQUEEZE) packages:
+- cmake
+- libboost-program-options-dev
 
 
 

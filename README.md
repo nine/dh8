@@ -1,8 +1,74 @@
 dh8
 ===
 
-Control software for [Diavite DH-8](http://diavite.com/index.php/dh-8-en.html) 
+Control software for the [Diavite DH-8](http://diavite.com/index.php/dh-8-en.html) 
 surface roughness measurement device.
+
+
+building:
+---------
+
+cd /path/to/project/root
+mkdir build && cd build 
+cmake ..
+make
+
+
+setup usb connection:
+---------------------
+
+connect the DH-8 via usb to your host-pc.
+the command 'dmesg | tail' shall give a similar output:
+  usb 7-1: new full speed USB device number 3 using uhci_hcd
+  usb 7-1: New USB device found, idVendor=10c4, idProduct=ea60
+  usb 7-1: New USB device strings: Mfr=1, Product=2, SerialNumber=3
+  usb 7-1: Product: CP2101 USB to UART Bridge Controller
+  usb 7-1: Manufacturer: Silicon Labs
+  usb 7-1: SerialNumber: 0001
+  cp210x 7-1:1.0: cp210x converter detected
+  usb 7-1: reset full speed USB device number 3 using uhci_hcd
+  usb 7-1: cp210x converter now attached to ttyUSB0
+
+check the current permissions of the created device:
+  ls -lha /dev/ttyUSB0
+  crw-rw---T 1 root dialout 188, 0 Jan 10 09:54 /dev/ttyUSB0
+
+the root user and the group dialout have read/write permissions to 
+the serial device. make sure that your user "yourusername" is member 
+of the group dialout:
+  grep dialout /etc/group
+  dialout:x:20:yourusername
+
+if necessary add your user to the group dialout:
+  sudo usermod -a -G dialout yourusername
+
+the serial terminal configuration is:
+  8 data bit
+  1 stop bit
+  no parity
+  115200 baud
+
+
+example usage:
+--------------
+
+  ./src/main --dev /dev/ttyUSB0 --file ../data/20120208_surface04.m --lt 0.48 --lc 0.08 
+
+
+
+dependencies:
+-------------
+
+cmake
+  cross plattform make 
+  http://www.cmake.org/
+boost program options
+  http://www.boost.org/doc/libs/1_48_0/doc/html/program_options.html
+
+provided by following debian (SQUEEZE) packages:
+  cmake
+  libboost-program-options-dev
+
 
 
 LICENSE

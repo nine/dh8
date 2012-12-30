@@ -20,7 +20,7 @@ Setup usb connection:
 
 Connect the DH-8 via usb to your host-pc.
 The command `'dmesg | tail'` shall give a similar output:
-<code>
+<pre>
 usb 7-1: new full speed USB device number 3 using uhci_hcd  
 usb 7-1: New USB device found, idVendor=10c4, idProduct=ea60  
 usb 7-1: New USB device strings: Mfr=1, Product=2, SerialNumber=3  
@@ -30,40 +30,40 @@ usb 7-1: SerialNumber: 0001
 cp210x 7-1:1.0: cp210x converter detected  
 usb 7-1: reset full speed USB device number 3 using uhci_hcd  
 usb 7-1: cp210x converter now attached to ttyUSB0  
-</code>
+</pre>
 
 Check the current permissions of the created device:
-<code>
+<pre>
 ls -lha /dev/ttyUSB0  
 crw-rw---T 1 root dialout 188, 0 Jan 10 09:54 /dev/ttyUSB0  
-</code>
+</pre>
 
 The root user and the group dialout have read/write permissions to 
 the serial device. Make sure that your user "yourusername" is member 
 of the group dialout:
-<code>
+<pre>
 grep dialout /etc/group  
 dialout:x:20:yourusername  
-</code>
+</pre>
 
 If necessary add your user to the group dialout:
-<code>
+<pre>
 sudo usermod -a -G dialout yourusername  
-</code>
+</pre>
 
 The serial terminal configuration is:
-<code>
+<pre>
 8 data bit  
 1 stop bit  
 no parity  
 115200 baud  
-</code>
+</pre>
 
 Example usage:
 --------------
-<code>
+<pre>
 ./src/main --dev /dev/ttyUSB0 --file ../data/20120208_surface04.m --lt 0.48 --lc 0.08   
-</code>
+</pre>
 
 
 Dependencies:

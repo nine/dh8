@@ -26,14 +26,14 @@
 
 CC=gcc
 RM=rm -f
-CFLAGS=-Wall -I$(CLSOCKET_HEADER) 
-LDFLAGS=
-LIBS=-L$(CLSOCKET_LIB) -lclsocket -lboost_program_options
+CFLAGS=-Wall -std=c++11
+LDFLAGS=-lstdc++
+LIBS=-lboost_program_options
 
 #--------------------------------------------------------
 
-OBJECTS    = main.o Serial.o SerialCmd.o
-HEADER     = Serial.h SerialCmd.h 
+OBJECTS    = main.o Serial.o dh8Data.o SerialCmd.o
+HEADER     = Serial.h dh8Data.h SerialCmd.h 
 EXECUTABLE = dh8
 
 #--------------------------------------------------------

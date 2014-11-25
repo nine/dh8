@@ -27,6 +27,7 @@
 namespace po = boost::program_options;
 
 #include "SerialCmd.h"
+#include "myException.h"
 
 #include <iostream>
 #include <iostream>
@@ -43,13 +44,20 @@ int main(int ac, char* av[])
 
     // parse the command line
     myApp.configure(ac,av);
-
-    // run the application
+    // initialize the devicie
+    myApp.initDevice();
+    // perform the measurement 
     myApp.runApplication();
 
   }
+  catch(MyException& e) {
+    if( e.getErrorNumber() != E_SUCCESS ) {
+      std::cerr << "Error: " << e.what() << " (Exit value: " << e.getErrorNumber() << ")" << std::endl;
+      return e.getErrorNumber();
+    }
+  }
   catch(std::exception& e) {
-    std::cerr << "error: " << e.what() << std::endl;
+    std::cerr << "Error: " << e.what() << std::endl;
     return 1;
   }
   catch(...) {

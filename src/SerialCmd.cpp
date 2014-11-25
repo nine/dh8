@@ -24,21 +24,16 @@
  */
 
 
-#define DEBUG_ERROR(txt) std::cerr << txt
-
 #include <boost/program_options.hpp>
 namespace po = boost::program_options;
 
 #include <unistd.h>
-#include <fstream>     // file io
-#include <iostream>    // file io
-#include <clocale>     // time
-#include <ctime>       // time
-#include <cctype>      // isspace
 #include <sstream>
 
 #include "SerialCmd.h"
+#include "dh8Data.h"
 #include "dh8defs.h"
+#include "myException.h"
 
 
 SerialCmd::SerialCmd() : 
@@ -50,14 +45,7 @@ SerialCmd::SerialCmd() :
   desc_("Allowed options"),
   OutFile_("measure.m"),
   Lt_("15"),
-  Lc_("0"),
-  Device_("Diavite DH-8"), 
-  Version_("-1"),
-  Unit_("-1"),
-  Norm_("-1"),
-  Tolerance_("-1"),
-  zReference_("-1"),
-  calZ_("-1")
+  Lc_("0")
 {
 
   Lc_map_["0"] =    0;
@@ -71,18 +59,16 @@ SerialCmd::SerialCmd() :
   Lt_map_["4.8"]  = 2;
   Lt_map_["15"]   = 3;
 
-	//DEBUG_INFO("SerialCmd::SerialCmd() entered." << std::endl);
 }
 
 SerialCmd::~SerialCmd()
 {
-	//DEBUG_INFO("SerialCmd::~SerialCmd() entered." << std::endl);
 }
 
 
 void
 SerialCmd::configure(int argc, char **argv) 
-{  
+{
   desc_.add_options()
     ("help,h",
      "produce help message")
@@ -104,216 +90,116 @@ SerialCmd::configure(int argc, char **argv)
 
   po::store(po::parse_command_line(argc, argv, desc_), args_);
   po::notify(args_);
+  
+  if( args_.count("help") ) {
+    std::cout << "This is " << APPNAME << " version " << VERSION << std::endl;
+    std::cout << "Usage: options_description [options]" << std::endl;
+    std::cout << desc_ << std::endl;
+    throw(MyException("All OK", E_SUCCESS));
+  }
 
+  if( args_.count("lt") && !Lt_map_.count(Lt_) ) {
+    throw(MyException("Option lt out of range", DH8_ERROR_PARAMNOTALLOWED));
+  }
+  if( args_.count("lc") && !Lc_map_.count(Lc_) ) {
+    throw(MyException("Option lc out of range", DH8_ERROR_PARAMNOTALLOWED));
+  } 
+  Data_.Lt_ = Lt_;
+  Data_.Lc_ = Lc_;
+}
+
+
+void SerialCmd::initDevice(void)
+{
+  // Initialize DH8
+  //---------------------------------------------------------------------
+  if(serial_.InitSerial(SerialPort_, BdRate_, 0, 1) < 1) {
+    throw(MyException("Opening the serial device", DH8_ERROR_SERIALPORT));
+  }
+  if( sendCommandCheckReply(DH8_READ_DEVICE, Data_.Device_, TimeOut_) < 0 ) {
+    throw(MyException("Wrong measurement device", DH8_ERROR_DEVICE));
+  }
+  if( sendCommand( DH8_READ_VERSION, Data_.Version_, TimeOut_ ) < 0 ) {
+    throw(MyException("Reading DH8 device version", DH8_ERROR_DEVICEVERSION));
+  }
+  if( sendCommand( DH8_READ_UNIT, Data_.Unit_, TimeOut_ ) < 0 ) {
+    throw(MyException("Reading measurement unit from DH8", DH8_ERROR_EXECCMD));
+  }
+  if( sendCommand( DH8_READ_NORM, Data_.Norm_, TimeOut_ ) < 0 ) {
+    throw(MyException("Reading norm from DH8", DH8_ERROR_EXECCMD));
+  }
+  if( sendCommand( DH8_READ_TOLERANCE, Data_.Tolerance_, TimeOut_ ) < 0 ) {
+    throw(MyException("Reading tolerance from DH8", DH8_ERROR_EXECCMD));
+  }
+
+  if( !args_.count("readout-only") ) {
+    // set measure params
+    std::string parm = DH8_SET_LT;
+    parm.push_back(Lt_map_[Lt_]);
+    if( sendCommandCheckReply(parm, "", TimeOut_) < 0 ) {
+      throw(MyException("Setting Lt on DH8", DH8_ERROR_EXECCMD));
+    }
+
+    parm = DH8_SET_LC;
+    parm.push_back(Lc_map_[Lc_]);
+    if( sendCommandCheckReply(parm, "", TimeOut_) < 0 ) {
+      throw(MyException("Setting Lc on DH8", DH8_ERROR_EXECCMD));
+    }
+  }
 }
 
 
 void
 SerialCmd::runApplication(void)
 {
-
-//  std::cout << "params" << std::endl;
-//  std::cout << "SerialPort_ " << SerialPort_ << std::endl;
-//  std::cout << "Cmd_" << Cmd_ << std::endl;
-//  std::cout << "Reply_" << Reply_ << std::endl; 
-//  std::cout << "TimeOut_ " << TimeOut_ << std::endl; 
-//  std::cout << "BdRate_ " << BdRate_ << std::endl; 
-//  std::cout << "blocking_ " << blocking_ << std::endl;
-
-
-  if (args_.count("help")) {
-    std::cout << "This is " << APPNAME << " version " << VERSION << std::endl;
-    std::cout << "Usage: options_description [options]" << std::endl;
-    std::cout << desc_ << std::endl;
-    exit(0);
-  }
-
-  if( args_.count("lt") ) {
-    if( !Lt_map_.count(Lt_) ) {
-      std::cout << "Usage error: option lt out of range" << std::endl;
-      exit(DH8_ERROR_PARAMNOTALLOWED);
-    }
-  }
-  if( args_.count("lc") ) {
-    if( !Lc_map_.count(Lc_) ) {
-      std::cout << "Usage error: option lc out of range" << std::endl;
-      exit(DH8_ERROR_PARAMNOTALLOWED);
-    }
-  }
-
-	// and off we go ...
-  // no parity, 1 stop-bit
-  if(serial_.InitSerial(SerialPort_, BdRate_, 0, 1) < 1)
-  {
-    DEBUG_ERROR("Error opening the serial device." << std::endl);
-    exit(DH8_ERROR_SERIALPORT);
-  }
-
-  if( sendCommandCheckReply(DH8_READ_DEVICE, Device_, TimeOut_) < 0 ) {
-    std::cerr << "error wrong measurement device" << std::endl;
-    exit(DH8_ERROR_DEVICE);
-  }
-  if( sendCommand( DH8_READ_VERSION, Version_, TimeOut_ ) < 0 ) {
-    std::cerr << "error reading device version" << std::endl;
-    exit(DH8_ERROR_DEVICEVERSION);
-  }
-  if( sendCommand( DH8_READ_UNIT, Unit_, TimeOut_ ) < 0 ) {
-    std::cerr << "error reading unit" << std::endl;
-    exit(DH8_ERROR_EXECCMD);
-  }
-  if( sendCommand( DH8_READ_NORM, Norm_, TimeOut_ ) < 0 ) {
-    std::cerr << "error reading norm" << std::endl;
-    exit(DH8_ERROR_EXECCMD);
-  }
-  if( sendCommand( DH8_READ_TOLERANCE, Tolerance_, TimeOut_ ) < 0 ) {
-    std::cerr << "error reading tolerance" << std::endl;
-    exit(DH8_ERROR_EXECCMD);
-  }
+  // Perform measurement
   if( !args_.count("readout-only") ) {
-    // set measure params
-    std::string parm = DH8_SET_LT;
-    parm.push_back(Lt_map_[Lt_]);
-    if( sendCommandCheckReply(parm, "", TimeOut_) < 0 ) {
-      std::cerr << "error setting Lt" << std::endl;
-      exit(DH8_ERROR_EXECCMD);
-    }
-
-    parm = DH8_SET_LC;
-    parm.push_back(Lc_map_[Lc_]);
-    if( sendCommandCheckReply(parm, "", TimeOut_) < 0 ) {
-      std::cerr << "error setting Lc" << std::endl;
-      exit(DH8_ERROR_EXECCMD);
-    }
-
-    // perform measurement
     if( sendCommandCheckReply(DH8_START_MEASURE, "", TimeOut_) < 0 ) {
-      std::cerr << "error starting measure" << std::endl;
-      exit(DH8_ERROR_PERFORM_MEASUREMENT);
+      throw(MyException("Starting measurent", DH8_ERROR_PERFORM_MEASUREMENT));
     }
   }
-  std::string rep; 
-  if( sendCommand( DH8_GET_R_VALUES, rep, TimeOut_ ) < 0 ) {
-    std::cerr << "error reading r-values" << std::endl;
-    exit(DH8_ERROR_READDATA);
+  // comma-separated string
+  std::string response; 
+  if( sendCommand( DH8_GET_R_VALUES, response, TimeOut_ ) < 0 ) {
+    throw(MyException("Reading R-values from DH8", DH8_ERROR_READDATA));
   }
-
-  // parsing csv
-  std::stringstream tmp(rep);
-  std::stringstream keys, vals;
-  std::string key, val;
-  std::getline(tmp, key);
-  keys << key;
-  std::getline(tmp, val);
-  vals << val;
-  while( std::getline(keys, key, ',') ) {
-    if( !std::getline(vals, val, ',') ) break;
-    if( key.empty() || val.empty() || key==" " || std::isspace(val.at(0)) ) continue;
-    Dh8Values_[key] = val;
+  Data_.parseValues( response );
+  
+  if( sendCommand(DH8_READ_Z_REFERENCE, Data_.zReference_, TimeOut_) < 0 ) {
+    throw(MyException("Reading z reference from DH8", DH8_ERROR_READDATA));
   }
-  if( sendCommand(DH8_READ_Z_REFERENCE, zReference_, TimeOut_) < 0 ) {
-    std::cerr << "error reading z reference" << std::endl;
-    exit(DH8_ERROR_READDATA);
-  }
-  if( sendCommand(DH8_READ_CAL_Z, calZ_, TimeOut_) < 0 ) {
-    std::cerr << "error reading cal_z" << std::endl;
-    exit(DH8_ERROR_READDATA);
+  if( sendCommand(DH8_READ_CAL_Z, Data_.calZ_, TimeOut_) < 0 ) {
+    throw(MyException("Reading cal_z from DH8", DH8_ERROR_READDATA));
   }
 
   if( sendCommandCheckReply(DH8_SET_FMT_BIN, "", TimeOut_) < 0 ) {
-    std::cerr << "error setting transmission format" << std::endl;
-    exit(DH8_ERROR_READDATA);
+    throw(MyException("Setting transmission format", DH8_ERROR_EXECCMD));
   }
-  if( sendCommandReadValues(DH8_READ_Z_VALUES, zValues_, TimeOut_) < 0) {
-    std::cerr << "error reading Z values" << std::endl;
-    exit(DH8_ERROR_READDATA);
+  if( sendCommandReadValues(DH8_READ_Z_VALUES, Data_.zValues_, TimeOut_) < 0) {
+    throw(MyException("Reading Z values from DH8", DH8_ERROR_READDATA));
   }
-  if( sendCommandReadValues(DH8_READ_FILT_Z_VALUES, zValuesFilt_, TimeOut_) < 0) {
-    std::cerr << "error reading filtered Z values" << std::endl;
-    exit(DH8_ERROR_READDATA);
+  if( sendCommandReadValues(DH8_READ_FILT_Z_VALUES, Data_.zValuesFilt_, TimeOut_) < 0) {
+    throw(MyException("Reading filtered Z values from DH8", DH8_ERROR_READDATA));
   }
-//  if( sendCommandReadValues2(DH8_READ_PRO_VALUES, proValues_, proPositions_, TimeOut_) < 0) {
-//    std::cerr << "error reading PRO values" << std::endl;
-//    exit(-1);
-//  }
+  // Not used:
+  //  if( sendCommandReadValues2(DH8_READ_PRO_VALUES, proValues_, proPositions_, TimeOut_) < 0) {
+  //    std::cerr << "error reading PRO values" << std::endl;
+  //    exit(-1);
+  //  }
 
   // write to file
-  writeDataFile();
-
+  Data_.writeMFile( OutFile_ );
 }
 
 
-int 
-SerialCmd::writeDataFile() {
-
-  char hostname[255];
-  std::string in("  ");   // line indent
-  std::string ml(" ...");  // multi line
-  
-  try {
-    // output to file
-    std::ofstream outfile( OutFile_.c_str() );
-    outfile.exceptions( std::ofstream::badbit | std::ofstream::failbit ); // throw exception on error
-    
-    // Use compiler's native locale.
-    std::setlocale( LC_TIME, "" );
-    std::time_t t = std::time( 0 );
-
-
-    outfile << "% file generated: " << std::ctime( &t ); 
-    if( gethostname( hostname, 254 )==0 ) {
-      outfile << "% on: " << hostname << std::endl << std::endl;
-    }
-
-    outfile << "Surface = struct( " << ml << std::endl;
-
-    // raw values
-    outfile << in << "'Lt', " << Lt_ << "," << ml << std::endl;
-    outfile << in << "'Lc', " << Lc_ << "," << ml << std::endl;
-    outfile << in << "'dh8', struct( " << ml << std::endl;
-    outfile << in<<in<< "'device', '" << Device_ << "', " << ml << std::endl;
-    outfile << in<<in<< "'version', '" << Version_ << "', " << ml << std::endl;
-    outfile << in<<in<< "'unit', '" << Unit_ << "', " << ml << std::endl;
-    outfile << in<<in<< "'norm', '" << Norm_ << "', " << ml << std::endl;
-    outfile << in<<in<< "'torlerance', '" << Tolerance_ << "' " << ml << std::endl;
-    outfile << in << ")," << ml << std::endl;
-
-    outfile << in << "'dh8_R_values', struct( " << ml << std::endl;
-    outfile << in<<in<< "'"<<Dh8Values_.begin()->first<<"'," << Dh8Values_.begin()->second;
-    Dh8Values_.erase( Dh8Values_.begin() );
-    for( std::map<std::string,std::string>::const_iterator itVal = Dh8Values_.begin();
-         itVal != Dh8Values_.end(); ++itVal ) {
-      outfile << "," << ml << std::endl;
-      outfile << in<<in<< "'"<<itVal->first<<"'," << itVal->second;
-    }
-    outfile << ml << std::endl << in << ")," << ml << std::endl;
-    outfile << in << "'cal_z'," << calZ_ <<","<<ml << std::endl;
-    outfile << in << "'z_reference'," << zReference_ <<","<<ml << std::endl;
-
-    outfile << in << "'z_values', [ " << ml << std::endl;
-    outfile << static_cast<float>(zValues_[0])/DH8_Z_FACTOR;
-    for( std::vector<int>::iterator itOut = zValues_.begin()+1; itOut != zValues_.end(); itOut++ ) {
-      outfile << ",";
-      outfile << static_cast<float>(*itOut)/DH8_Z_FACTOR;
-    }
-    outfile << in << "]," << ml << std::endl,
-    outfile << in << "'z_values_filt', [ " << ml << std::endl;
-    outfile << static_cast<float>(zValuesFilt_[0])/DH8_Z_FACTOR;
-    for( std::vector<int>::iterator itOut = zValuesFilt_.begin()+1; itOut != zValuesFilt_.end(); itOut++ ) {
-      outfile << ",";
-      outfile << static_cast<float>(*itOut)/DH8_Z_FACTOR;
-    }
-    outfile << in << "]" << ml << std::endl,
-    
-    outfile << ");" << std::endl;
-    
-    outfile.close();
-  } 
-  catch( std::ios_base::failure &e ) {
-    std::cerr << "error writing data to file: " << e.what() << std::endl;
-    exit(DH8_ERROR_WRITEFILE);
+void
+SerialCmd::sendStringWithDelimiters(std::string const & tx_buffer) {
+  // send bytes, no echo
+  serial_.SendByte( ESC );
+  for( auto const& itSend: tx_buffer ) {
+    serial_.SendByte( itSend );
   }
-
-  return 0;
+  serial_.SendByte( ETX );
 }
 
 
@@ -325,14 +211,8 @@ SerialCmd::sendCommandReadValues2(std::string const & stringToSend, std::vector<
   unsigned int valBuffer = 0;
   double RxTime;
 
-  std::string txBuffer = appendDelimiters( stringToSend );
+  sendStringWithDelimiters( stringToSend );
 
-  // send bytes, no echo
-  for( std::string::const_iterator itSend = txBuffer.begin();
-      itSend != txBuffer.end(); itSend++ ) {
-    serial_.SendByte(*itSend);
-  }
-  
   // response format: <ACK [1]><GAIN [2]><VAL_COUNT [2]> values <EOT>
   if( serial_.WaitForSingleByte(RxByte, RxTime, TimeOut_, 0) < 0 ) return(-1);  // Timeout on receiving <ACK>
   if( RxByte != ACK ) return(-1);  // received no <ACK>
@@ -401,13 +281,7 @@ SerialCmd::sendCommandReadValues(std::string const & stringToSend, std::vector<i
   unsigned int valBuffer = 0;
   double RxTime;
 
-  std::string txBuffer = appendDelimiters( stringToSend );
-
-  // send bytes, no echo
-  for( std::string::const_iterator itSend = txBuffer.begin();
-      itSend != txBuffer.end(); itSend++ ) {
-    serial_.SendByte(*itSend);
-  }
+  sendStringWithDelimiters( stringToSend );
   
   // response format: <ACK [1]><GAIN [2]><VAL_COUNT [2]> values <EOT>
   if( serial_.WaitForSingleByte(RxByte, RxTime, TimeOut_, 0) < 0 ) return(-1);  // Timeout on receiving <ACK>
@@ -446,12 +320,6 @@ SerialCmd::sendCommandReadValues(std::string const & stringToSend, std::vector<i
 }
 
 
-std::string
-SerialCmd::appendDelimiters(std::string const & str) const {
-  std::string ret = ESC+str+ETX;
-  return ret;
-}
-
 int 
 SerialCmd::sendCommand(std::string const & stringToSend, std::string & stringReceived, int TimeOut)
 {
@@ -460,12 +328,7 @@ SerialCmd::sendCommand(std::string const & stringToSend, std::string & stringRec
   std::stringstream rxBuffer;
   const int count = 400;
  
-  std::string txBuffer = appendDelimiters(stringToSend);
-  // send bytes, no echo
-  for( std::string::const_iterator itSend = txBuffer.begin();
-       itSend != txBuffer.end(); itSend++ ) {
-    serial_.SendByte(*itSend);
-  }
+  sendStringWithDelimiters( stringToSend );
   
   // response format: <ACK> answer <EOT>
   if( serial_.WaitForSingleByte(RxByte, RxTime, TimeOut, 0) == -1) return(-1);  // Timeout on receiving <ACK>
@@ -492,23 +355,17 @@ SerialCmd::sendCommandCheckReply(std::string const & stringToSend, std::string c
   unsigned char RxByte;
   double RxTime;
   std::stringstream rxBuffer;
-  std::string txBuffer = appendDelimiters(stringToSend);
   
-  // send bytes, no echo
-  for( std::string::const_iterator itSend = txBuffer.begin();
-       itSend != txBuffer.end(); itSend++ ) {
-    serial_.SendByte(*itSend);
-  }
+  sendStringWithDelimiters( stringToSend );
   
   // response format: <ACK> answer <EOT>
   if( serial_.WaitForSingleByte(RxByte, RxTime, TimeOut, 0) == -1) return(-1);  // Timeout on receiving <ACK>
   if( RxByte != ACK ) return(-1);  // received no <ACK>
 
 	// check the response
-	for(std::string::const_iterator itRec = responseToCheck.begin();
-			itRec !=responseToCheck.end(); itRec++) {
+  for( auto const& itRec: responseToCheck ) {
     if(serial_.WaitForSingleByte(RxByte, RxTime, TimeOut, 0) == -1) return(-1);  // Timeout on receiving the echoed byte
-    if(RxByte != (*itRec)) return(-1);   // illegal character received
+    if(RxByte != (itRec)) return(-1);   // illegal character received
   }
   if( serial_.WaitForSingleByte(RxByte, RxTime, TimeOut, 0) == -1) return(-1);  // Timeout on receiving <EOT>
   if( RxByte != EOT ) return(-1);  // received no <EOT>
@@ -531,19 +388,14 @@ SerialCmd::sendBufferAwaitCompletion(std::string const & StringToSend, std::stri
 {
 	unsigned char RxByte;
 	double RxTime;
-	//DEBUG_INFO("SerialCmd::sendBufferAwaitCompletion() entered." << std::endl);
 	
-	for(std::string::const_iterator itSend = StringToSend.begin();
-			itSend !=StringToSend.end(); itSend++)
-		{
-			//DEBUG_MESSAGE("Sending: " << *itSend << std::endl);
-			serial_.SendByte(*itSend);
-			if(serial_.WaitForSingleByte(RxByte, RxTime, TimeOut, 0) == -1) return(-1);  // Timeout on receiving the echoed byte
-			if(RxByte != (*itSend)) return(-1);   // illegal character received
-		}
+  for( auto const& itSend: StringToSend ) {
+    serial_.SendByte( itSend );
+    if(serial_.WaitForSingleByte(RxByte, RxTime, TimeOut, 0) == -1) return(-1);  // Timeout on receiving the echoed byte
+    if(RxByte != (itSend)) return(-1);   // illegal character received
+  }
 
-	if(blocking_ == false)
-  {
+	if(blocking_ == false) {
     serial_.WaitForSingleByte(RxByte, RxTime, 1, 0);
     return(0);
   }

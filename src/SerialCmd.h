@@ -33,7 +33,7 @@ namespace po = boost::program_options;
 #include <stdint.h>
 #include <string>
 #include "Serial.h"
-
+#include "dh8Data.h"
 
 class SerialCmd
 {
@@ -43,11 +43,12 @@ class SerialCmd
 
     // application interface
     virtual void configure(int argc, char **argv);
+    virtual void initDevice(void);
     virtual void runApplication(void);
 
   private:
-    std::string SerialPort_;            // Port used by the oriel controller
-    std::string Cmd_;                   // command sent to the controller
+    std::string SerialPort_;            // Serial port used by the DH8
+    std::string Cmd_;                   // command sent to the DH8
     std::string Reply_;                 // reply to wait for (blocking commands)
     int TimeOut_;                       // max. time to wait for a response
     int BdRate_;                        // Baud-Rate of the transmission
@@ -62,23 +63,11 @@ class SerialCmd
     std::map<std::string, unsigned char> Lt_map_;  // map length to parameter
     std::map<std::string, unsigned char> Lc_map_;  // map length to parameter
 
-    // data
-    std::string Device_;
-    std::string Version_;
-    std::string Unit_;
-    std::string Norm_;
-    std::string Tolerance_;
-    std::string zReference_;
-    std::string calZ_;
-    std::vector<int> zValues_;
-    std::vector<int> zValuesFilt_;
-    // unused, just for profile tracer!
-    //std::vector<int> proValues_, proPositions_;
-    std::map<std::string, std::string> Dh8Values_;
+    // DH8 data
+    Dh8Data Data_;
 
     // methods
-    std::string appendDelimiters(std::string const & str) const;
-    int writeDataFile();
+    void sendStringWithDelimiters(std::string const & tx_buffer);
     int sendCommandReadValues(std::string const & stringToSend, std::vector<int> & valuesReceived, int TimeOut);
     int sendCommandReadValues2(std::string const & stringToSend, std::vector<int> & valuesReceived, std::vector<int> & posReceived, int TimeOut);
     int sendCommand(std::string const & stringToSend, std::string & stringReceived, int TimeOut);

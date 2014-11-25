@@ -67,28 +67,6 @@
 #define DH8_SET_CAL_Z             "\x65"
 
 
-enum DH8_ERRORNUMBERS {
-  DH8_ERROR_NOERROR = 0,
-
-  // serial port
-  DH8_ERROR_SERIALPORT = -10,
-  // wrong device attached
-  DH8_ERROR_DEVICE = -20,
-  // wrong device version
-  DH8_ERROR_DEVICEVERSION = -30,
-  // execution of command
-  DH8_ERROR_EXECCMD = -40,
-  // perform measurement
-  DH8_ERROR_PERFORM_MEASUREMENT = -50,
-  // read surface profile data
-  DH8_ERROR_READDATA = -60,
-  // write measurement file 
-  DH8_ERROR_WRITEFILE = -70,
-
-  // parameter out of range
-  DH8_ERROR_PARAMNOTALLOWED = -999
-};
-
 
 //--------------------------------------
 
